@@ -14,7 +14,9 @@ export type ASTNode =
     | IndexNode
     | FunctionNode
     | AdverbNode
-    | ConditionalNode;
+    | ConditionalNode
+    | AmendedAssignmentNode
+    | OperatorNode;
 
 export interface ProgramNode { type: 'Program'; body: ASTNode[]; }
 export interface NumberNode { type: 'Number'; value: number; }
@@ -30,6 +32,8 @@ export interface IndexNode { type: 'Index'; target: ASTNode; indices: ASTNode[];
 export interface FunctionNode { type: 'Function'; params: string[]; body: ASTNode[]; }
 export interface AdverbNode { type: 'Adverb'; adverb: string; verb: ASTNode; }
 export interface ConditionalNode { type: 'Conditional'; cond: ASTNode; trueBranch: ASTNode; falseBranch: ASTNode; }
+export interface AmendedAssignmentNode { type: 'AmendedAssignment'; target: ASTNode; indices: ASTNode[]; value: ASTNode; }
+export interface OperatorNode { type: 'Operator'; value: string; }
 
 export class Parser {
     private tokens: Token[];
@@ -93,7 +97,14 @@ export class Parser {
             this.advance(); // consume :
             return { type: 'Assignment', name, value: this.parseExpression() };
         }
-        return this.parseBinary();
+        const left = this.parseBinary();
+        if (this.match(TokenType.COLON)) {
+            if (left.type === 'Index') {
+                return { type: 'AmendedAssignment', target: left.target, indices: left.indices, value: this.parseExpression() };
+            }
+            throw new Error("Invalid assignment target");
+        }
+        return left;
     }
 
     private peekNext(): Token | null {
@@ -111,14 +122,32 @@ export class Parser {
                 if (a === '/' || a === '\\' || a === "'") {
                     this.advance();
                     adverb = a;
-                    if (this.match(TokenType.COLON)) {
-                        adverb += ':';
-                    }
+                    if (this.match(TokenType.COLON)) adverb += ':';
                 }
             }
             return { type: 'BinaryOp', op, left, right: this.parseBinary(), adverb };
+        } 
+        // Noun Verb Noun (Infix function application)
+        else if (this.checkAtom() && !this.isNounAdjacency(left)) {
+             const verb = this.parseUnary();
+             if (this.isVerb(verb) || (verb.type === 'Index' && this.isVerb(verb.target))) {
+                 if (verb.type === 'Index' && verb.indices.length === 1) {
+                     verb.indices = [left, verb.indices[0]];
+                     return verb;
+                 }
+                 const right = this.parseBinary();
+                 return { type: 'Index', target: verb, indices: [left, right] };
+             }
         }
         return left;
+    }
+
+    private isNounAdjacency(left: ASTNode): boolean {
+        return this.isNoun(left) && this.checkAtom() && !this.isVerbAtom(this.peek());
+    }
+
+    private isVerbAtom(token: Token): boolean {
+        return token.type === TokenType.LBRACE || token.type === TokenType.IDENTIFIER;
     }
 
     private parseUnary(): ASTNode {
@@ -133,9 +162,7 @@ export class Parser {
                 if (a === '/' || a === '\\' || a === "'") {
                     this.advance();
                     adverb = a;
-                    if (this.match(TokenType.COLON)) {
-                        adverb += ':';
-                    }
+                    if (this.match(TokenType.COLON)) adverb += ':';
                 }
             }
             return { type: 'UnaryOp', op, right: this.parseBinary(), adverb };
@@ -155,17 +182,48 @@ export class Parser {
                 }
                 this.consume(TokenType.RBRACKET, "Expected ']' after indices.");
                 expr = { type: 'Index', target: expr, indices };
-            } else if (this.checkPrimitive()) {
-                const elements: ASTNode[] = [expr];
-                while (this.checkPrimitive()) {
-                    elements.push(this.parsePrimary());
+            } else if (this.check(TokenType.OPERATOR)) {
+                const a = this.peek().value;
+                if ((a === '/' || a === '\\' || a === "'") && (expr.type === 'Function' || expr.type === 'Adverb')) {
+                    this.advance();
+                    let adverb = a;
+                    if (this.match(TokenType.COLON)) adverb += ':';
+                    expr = { type: 'Adverb', adverb, verb: expr };
+                } else {
+                    break;
                 }
-                expr = { type: 'Array', elements };
+            } else if (this.checkAtom()) {
+                if (this.check(TokenType.IDENTIFIER) && this.peekNext()?.type === TokenType.COLON) break;
+
+                if (this.isVerb(expr)) {
+                    const arg = this.parsePostfix();
+                    expr = { type: 'Index', target: expr, indices: [arg] };
+                } else if (this.checkPrimitive() && this.isNoun(expr)) {
+                    const elements: ASTNode[] = [expr];
+                    while (this.checkPrimitive()) {
+                        elements.push(this.parsePrimary());
+                    }
+                    expr = { type: 'Array', elements };
+                } else {
+                    break;
+                }
             } else {
                 break;
             }
         }
         return expr;
+    }
+
+    private isVerb(node: ASTNode): boolean {
+        return node.type === 'Function' || node.type === 'Adverb' || node.type === 'Identifier' || (node.type === 'BinaryOp' && !!node.adverb);
+    }
+
+    private isNoun(node: ASTNode): boolean {
+        return node.type === 'Number' || node.type === 'String' || node.type === 'Symbol' || node.type === 'Array';
+    }
+
+    private checkAtom(): boolean {
+        return this.checkPrimitive() || this.check(TokenType.LPAREN) || this.check(TokenType.LBRACE) || this.check(TokenType.IDENTIFIER);
     }
 
     private checkPrimitive(): boolean {
@@ -174,14 +232,13 @@ export class Parser {
 
     private parsePrimary(): ASTNode {
         if (this.check(TokenType.OPERATOR) && this.peek().value === '$' && this.peekNext()?.type === TokenType.LBRACKET) {
-            this.advance(); // $
-            this.advance(); // [
+            this.advance(); this.advance();
             const cond = this.parseExpression();
-            this.consume(TokenType.SEMI, "Expected ';' after condition.");
+            this.consume(TokenType.SEMI, "Exp ';' after cond.");
             const trueBranch = this.parseExpression();
-            this.consume(TokenType.SEMI, "Expected ';' after true branch.");
+            this.consume(TokenType.SEMI, "Exp ';' after true.");
             const falseBranch = this.parseExpression();
-            this.consume(TokenType.RBRACKET, "Expected ']' after conditional.");
+            this.consume(TokenType.RBRACKET, "Exp ']' after cond.");
             return { type: 'Conditional', cond, trueBranch, falseBranch };
         }
         if (this.match(TokenType.NUMBER)) return { type: 'Number', value: parseFloat(this.previous().value) };

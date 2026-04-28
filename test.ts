@@ -169,3 +169,27 @@ Deno.test("Evaluates Built-in Math Functions", () => {
     assertEquals(evalSrc("floor 10.5"), "10");
     assertEquals(evalSrc("abs -1 -2 3"), "1 2 3");
 });
+
+Deno.test("Evaluates String Join (/) and Split (\\)", () => {
+    assertEquals(evalSrc('"," / "a" "b" "c"'), '"a,b,c"');
+    assertEquals(evalSrc('"," \\ "a,b,c"'), '("a"; "b"; "c")');
+});
+
+Deno.test("Evaluates Function Adverbs (Converge and Iterate)", () => {
+    // Iterate 3 times: {x+2} applied to 10 -> 16
+    assertEquals(evalSrc("3 {x+2}/ 10"), "16");
+    // Converge: half until result matches (0)
+    assertEquals(evalSrc("{_ x%2}/ 10"), "0");
+});
+
+Deno.test("Evaluates Amended Assignment", () => {
+    assertEquals(evalSrc("a: 1 2 3; a[1]: 10; a"), "1 10 3");
+    assertEquals(evalSrc("d: `a`b!1 2; d[`a]: 10; d"), "`a `b!10 2");
+});
+
+Deno.test("Evaluates File I/O (0:)", () => {
+    const filename = "test_io.txt";
+    evalSrc(`"${filename}" 0: "hello" "world"`);
+    assertEquals(evalSrc(`0: "${filename}"`), '("hello"; "world")');
+    Deno.removeSync(filename);
+});

@@ -62,8 +62,7 @@ export class Lexer {
             if (char === ' ' || char === '\t' || char === '\r') {
                 this.advance();
             } else if (char === '/') {
-                const prev = this.pos > 0 ? this.source[this.pos - 1] : '\n';
-                if (prev === '\n' || prev === ' ' || prev === '\t') {
+                if (this.col === 1) {
                     while (this.peek() !== '\n' && this.peek() !== '\0') this.advance();
                 } else {
                     break;
@@ -95,6 +94,12 @@ export class Lexer {
         if (char === '\n') {
             this.advance();
             return { type: TokenType.SEMI, value: ';', line: this.line, col: startCol };
+        }
+
+        if (char === '0' && this.source[this.pos + 1] === ':') {
+            this.advance(); // 0
+            this.advance(); // :
+            return { type: TokenType.OPERATOR, value: '0:', line: this.line, col: startCol };
         }
 
         if (this.isDigit(char) || (char === '-' && this.isDigit(this.source[this.pos + 1]))) {

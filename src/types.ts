@@ -19,7 +19,7 @@ export function kToString(k: KValue): string {
         case 'int': return k.value.toString();
         case 'float': return k.value.toString();
         case 'symbol': return "`" + k.value;
-        case 'char': return k.value === '"' ? '\\"' : k.value;
+        case 'char': return k.value;
         case 'list': 
             const list = k.value as KValue[];
             if (list.length > 0 && list.every(item => item.type === 'char')) {
