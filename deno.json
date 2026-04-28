@@ -1,0 +1,9 @@
+{
+  "name": "klike",
+  "version": "0.1.0",
+  "exports": "./main.ts",
+  "tasks": {
+    "run": "deno run -A main.ts",
+    "test": "deno test -A"
+  }
+}
