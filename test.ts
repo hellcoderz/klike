@@ -179,7 +179,7 @@ Deno.test("Evaluates Function Adverbs (Converge and Iterate)", () => {
     // Iterate 3 times: {x+2} applied to 10 -> 16
     assertEquals(evalSrc("3 {x+2}/ 10"), "16");
     // Converge: half until result matches (0)
-    assertEquals(evalSrc("{_ x%2}/ 10"), "0");
+    assertEquals(evalSrc("{_ x%2}/ 100"), "0");
 });
 
 Deno.test("Evaluates Amended Assignment", () => {
@@ -192,4 +192,10 @@ Deno.test("Evaluates File I/O (0:)", () => {
     evalSrc(`"${filename}" 0: "hello" "world"`);
     assertEquals(evalSrc(`0: "${filename}"`), '("hello"; "world")');
     Deno.removeSync(filename);
+});
+
+Deno.test("Evaluates JSON Parsing and Stringifying (5:)", () => {
+    const src = '5: "{\\\"a\\\":1,\\\"b\\\":[2,3],\\\"c\\\":{\\\"d\\\":\\\"e\\\"}}"';
+    // Stringify the parsed result and parse it again to ensure round-trip parity
+    assertEquals(evalSrc(`5: ((${src}) 5: "")`), evalSrc(src));
 });

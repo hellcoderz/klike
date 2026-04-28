@@ -36,6 +36,7 @@
 | `$` | **String Cast** | **Cast** |
 | `0:` | **Read File** (lines) | **Write File** (lines) |
 | `3:` | **HTTP GET** | **HTTP POST** |
+| `5:` | **JSON Parse** | **JSON Stringify** |
 
 ### ⚡️ Adverbs (Higher-Order Functions)
 Adverbs modify verbs (operators or functions) to change their behavior over arrays:
@@ -96,6 +97,7 @@ The `examples/` directory contains various scripts demonstrating the language:
 7. `07_primitives_math.k`: Sorting (Grade Up/Down) and Math library.
 8. `08_final_features.k`: Functional adverbs, String Join/Split, and File I/O.
 9. `09_http_requests.k`: Synchronous HTTP GET and POST requests using `3:`.
+10. `10_json_parsing.k`: JSON parsing and stringifying with `5:`.
 
 ## License
 MIT

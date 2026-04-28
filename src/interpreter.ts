@@ -337,6 +337,12 @@ export class Interpreter {
             return this.applyDerivedVerb(this.getPrimitive(op), adverb, [left, right]);
         }
 
+        if (op === '5:') { // JSON Stringify
+            const js = this.kValueToJson(left);
+            const json = JSON.stringify(js, null, 2);
+            return kList(json.split('').map(kChar));
+        }
+
         if (op === '3:') { // HTTP POST
             const url = this.getRawString(right);
             const body = this.getRawString(left);
@@ -468,9 +474,53 @@ export class Interpreter {
         return kToString(v);
     }
 
+    private jsonToKValue(js: any): KValue {
+        if (js === null || js === undefined) return kSymbol("null");
+        if (typeof js === 'number') return js % 1 === 0 ? kInt(js) : kFloat(js);
+        if (typeof js === 'string') return kList(js.split('').map(kChar));
+        if (typeof js === 'boolean') return kInt(js ? 1 : 0);
+        if (Array.isArray(js)) return kList(js.map(v => this.jsonToKValue(v)));
+        if (typeof js === 'object') {
+            const keys = Object.keys(js).map(kSymbol);
+            const values = Object.values(js).map(v => this.jsonToKValue(v));
+            return kDict(kList(keys), kList(values));
+        }
+        return kSymbol("unknown");
+    }
+
+    private kValueToJson(k: KValue): any {
+        switch (k.type) {
+            case 'int':
+            case 'float': return k.value;
+            case 'symbol': return k.value;
+            case 'char': return k.value;
+            case 'list':
+                const list = k.value as KValue[];
+                if (list.every(c => c.type === 'char')) return list.map(c => c.value).join('');
+                return list.map(v => this.kValueToJson(v));
+            case 'dict':
+                const keys = (k.value.keys.value as KValue[]).map(v => kToString(v).replace(/^`/, ''));
+                const values = (k.value.values.value as KValue[]).map(v => this.kValueToJson(v));
+                const obj: any = {};
+                keys.forEach((key, i) => obj[key] = values[i]);
+                return obj;
+            default: return null;
+        }
+    }
+
     private evalUnary(op: string, right: KValue, adverb?: string): KValue {
         if (adverb) {
             return this.applyDerivedVerb(this.getPrimitive(op), adverb, [right]);
+        }
+
+        if (op === '5:') { // JSON Parse
+            const json = this.getRawString(right);
+            try {
+                const js = JSON.parse(json);
+                return this.jsonToKValue(js);
+            } catch (e: any) {
+                throw new Error(`JSON parse error: ${e.message}`);
+            }
         }
 
         if (op === '3:') { // HTTP GET
