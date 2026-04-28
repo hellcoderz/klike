@@ -337,6 +337,21 @@ export class Interpreter {
             return this.applyDerivedVerb(this.getPrimitive(op), adverb, [left, right]);
         }
 
+        if (op === '3:') { // HTTP POST
+            const url = this.getRawString(right);
+            const body = this.getRawString(left);
+            try {
+                const command = new Deno.Command("curl", {
+                    args: ["-s", "-X", "POST", "-d", body, url],
+                });
+                const { stdout } = command.outputSync();
+                const response = new TextDecoder().decode(stdout);
+                return kList(response.split('').map(kChar));
+            } catch (e: any) {
+                throw new Error(`HTTP POST error: ${e.message}`);
+            }
+        }
+
         if (op === '0:') { // Write file
             const filename = this.getRawString(left);
             const content = right.type === 'list' ? (right.value as KValue[]).map(v => this.getRawString(v)).join('\n') : this.getRawString(right);
@@ -456,6 +471,20 @@ export class Interpreter {
     private evalUnary(op: string, right: KValue, adverb?: string): KValue {
         if (adverb) {
             return this.applyDerivedVerb(this.getPrimitive(op), adverb, [right]);
+        }
+
+        if (op === '3:') { // HTTP GET
+            const url = this.getRawString(right);
+            try {
+                const command = new Deno.Command("curl", {
+                    args: ["-s", url],
+                });
+                const { stdout } = command.outputSync();
+                const response = new TextDecoder().decode(stdout);
+                return kList(response.split('').map(kChar));
+            } catch (e: any) {
+                throw new Error(`HTTP GET error: ${e.message}`);
+            }
         }
 
         if (op === '0:') { // Read file

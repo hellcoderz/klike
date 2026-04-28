@@ -35,6 +35,7 @@
 | `.` | **Values** (dict) | **Deep Indexing / Apply / String Split** |
 | `$` | **String Cast** | **Cast** |
 | `0:` | **Read File** (lines) | **Write File** (lines) |
+| `3:` | **HTTP GET** | **HTTP POST** |
 
 ### ⚡️ Adverbs (Higher-Order Functions)
 Adverbs modify verbs (operators or functions) to change their behavior over arrays:
@@ -94,6 +95,7 @@ The `examples/` directory contains various scripts demonstrating the language:
 6. `06_matrix_and_tables.k`: Matrix transpose and Table operations.
 7. `07_primitives_math.k`: Sorting (Grade Up/Down) and Math library.
 8. `08_final_features.k`: Functional adverbs, String Join/Split, and File I/O.
+9. `09_http_requests.k`: Synchronous HTTP GET and POST requests using `3:`.
 
 ## License
 MIT
