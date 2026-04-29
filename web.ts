@@ -17,13 +17,13 @@ async function handleEval(req: Request): Promise<Response> {
         const env = new Environment();
         const interpreter = new Interpreter(env);
         
-        let lastResult = "";
+        const results = [];
         for (const node of ast.body) {
             const res = interpreter.eval(node);
-            lastResult = kToString(res);
+            results.push(kToString(res));
         }
         
-        return new Response(JSON.stringify({ result: lastResult }), {
+        return new Response(JSON.stringify({ results }), {
             headers: { "Content-Type": "application/json" },
         });
     } catch (e: any) {

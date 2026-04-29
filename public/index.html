@@ -36,6 +36,7 @@ a + 10"></textarea>
             <div id="output"></div>
         </div>
     </div>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script>
         const editor = document.getElementById('editor');
         const output = document.getElementById('output');
@@ -53,28 +54,48 @@ a + 10"></textarea>
 
             const data = await res.json();
             
-            const item = document.createElement('div');
-            item.className = 'result-item';
-            
-            const prompt = document.createElement('span');
-            prompt.className = 'prompt';
-            prompt.textContent = '>>';
-            
-            const val = document.createElement('div');
             if (data.error) {
+                const item = document.createElement('div');
+                item.className = 'result-item';
+                const val = document.createElement('div');
                 val.className = 'error';
                 val.textContent = data.error;
-            } else {
-                if (data.result.startsWith('<table') || data.result.startsWith('<div')) {
-                    val.innerHTML = data.result;
-                } else {
-                    val.textContent = data.result;
-                }
+                item.appendChild(val);
+                output.insertBefore(item, output.firstChild);
+                return;
             }
-            
-            item.appendChild(prompt);
-            item.appendChild(val);
-            output.insertBefore(item, output.firstChild);
+
+            // Render all results from the program
+            data.results.forEach(result => {
+                const item = document.createElement('div');
+                item.className = 'result-item';
+                
+                const prompt = document.createElement('span');
+                prompt.className = 'prompt';
+                prompt.textContent = '>>';
+                
+                const val = document.createElement('div');
+                
+                // Unquote klike strings if they wrap HTML or Markdown
+                if (result.startsWith('"') && result.endsWith('"')) {
+                    const unquoted = result.substring(1, result.length - 1);
+                    const trimmed = unquoted.trim();
+                    
+                    if (trimmed.startsWith('<table') || trimmed.startsWith('<div') || trimmed.startsWith('<h')) {
+                        val.innerHTML = unquoted;
+                    } else if (trimmed.startsWith('|') || trimmed.startsWith('# ') || trimmed.startsWith('**')) {
+                        val.innerHTML = marked.parse(unquoted);
+                    } else {
+                        val.textContent = result;
+                    }
+                } else {
+                    val.textContent = result;
+                }
+                
+                item.appendChild(prompt);
+                item.appendChild(val);
+                output.insertBefore(item, output.firstChild);
+            });
         }
 
         runBtn.onclick = run;
