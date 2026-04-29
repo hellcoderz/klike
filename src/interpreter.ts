@@ -337,6 +337,13 @@ export class Interpreter {
             return this.applyDerivedVerb(this.getPrimitive(op), adverb, [left, right]);
         }
 
+        if (op === '6:') { // Rich Text Formatting
+            const format = this.getRawString(right);
+            if (format === 'md') return kList(this.toMarkdown(left).split('').map(kChar));
+            if (format === 'html') return kList(this.toHTML(left).split('').map(kChar));
+            throw new Error(`Unsupported format: ${format}`);
+        }
+
         if (op === '5:') { // JSON Stringify
             const js = this.kValueToJson(left);
             const json = JSON.stringify(js, null, 2);
@@ -506,6 +513,59 @@ export class Interpreter {
                 return obj;
             default: return null;
         }
+    }
+
+    private toMarkdown(k: KValue): string {
+        if (k.type === 'dict') {
+            const keys = k.value.keys.value as KValue[];
+            const values = k.value.values.value as KValue[];
+            // Check if tabular
+            if (values.length > 0 && values.every(v => v.type === 'list' && (v.value as KValue[]).length === (values[0].value as KValue[]).length)) {
+                const headers = keys.map(kToString).join(" | ");
+                const sep = keys.map(() => "---").join(" | ");
+                const rowCount = (values[0].value as KValue[]).length;
+                const rows = [];
+                for (let i = 0; i < rowCount; i++) {
+                    rows.push(values.map(v => kToString((v.value as KValue[])[i])).join(" | "));
+                }
+                return `| ${headers} |\n| ${sep} |\n| ${rows.join(" |\n| ")} |`;
+            }
+            const rows = keys.map((key, i) => `| ${kToString(key)} | ${kToString(values[i])} |`);
+            return `| Key | Value |\n| --- | --- |\n${rows.join("\n")}`;
+        }
+        if (k.type === 'list') {
+            const list = k.value as KValue[];
+            if (list.every(v => v.type !== 'list')) {
+                return `| Value |\n| --- |\n| ${list.map(kToString).join(" |\n| ")} |`;
+            }
+        }
+        return kToString(k);
+    }
+
+    private toHTML(k: KValue): string {
+        if (k.type === 'dict') {
+            const keys = k.value.keys.value as KValue[];
+            const values = k.value.values.value as KValue[];
+            if (values.length > 0 && values.every(v => v.type === 'list' && (v.value as KValue[]).length === (values[0].value as KValue[]).length)) {
+                const headers = keys.map(k => `<th>${kToString(k)}</th>`).join("");
+                const rowCount = (values[0].value as KValue[]).length;
+                const rows = [];
+                for (let i = 0; i < rowCount; i++) {
+                    const cells = values.map(v => `<td>${kToString((v.value as KValue[])[i])}</td>`).join("");
+                    rows.push(`<tr>${cells}</tr>`);
+                }
+                return `<table border="1"><thead><tr>${headers}</tr></thead><tbody>${rows.join("")}</tbody></table>`;
+            }
+            const rows = keys.map((key, i) => `<tr><td>${kToString(key)}</td><td>${kToString(values[i])}</td></tr>`);
+            return `<table border="1"><thead><tr><th>Key</th><th>Value</th></tr></thead><tbody>${rows.join("")}</tbody></table>`;
+        }
+        if (k.type === 'list') {
+            const list = k.value as KValue[];
+            if (list.every(v => v.type !== 'list')) {
+                return `<table border="1"><thead><tr><th>Value</th></tr></thead><tbody>${list.map(v => `<tr><td>${kToString(v)}</td></tr>`).join("")}</tbody></table>`;
+            }
+        }
+        return `<div>${kToString(k)}</div>`;
     }
 
     private evalUnary(op: string, right: KValue, adverb?: string): KValue {

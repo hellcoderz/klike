@@ -111,6 +111,11 @@ export class Lexer {
             this.advance(); // :
             return { type: TokenType.OPERATOR, value: '5:', line: this.line, col: startCol };
         }
+        if (char === '6' && this.source[this.pos + 1] === ':') {
+            this.advance(); // 6
+            this.advance(); // :
+            return { type: TokenType.OPERATOR, value: '6:', line: this.line, col: startCol };
+        }
 
         if (this.isDigit(char) || (char === '-' && this.isDigit(this.source[this.pos + 1]))) {
             let value = '';

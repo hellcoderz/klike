@@ -199,3 +199,8 @@ Deno.test("Evaluates JSON Parsing and Stringifying (5:)", () => {
     // Stringify the parsed result and parse it again to ensure round-trip parity
     assertEquals(evalSrc(`5: ((${src}) 5: "")`), evalSrc(src));
 });
+
+Deno.test("Evaluates Rich Text Formatting (6:)", () => {
+    const res = evalSrc("(`x`y!1 2) 6: \"html\"");
+    assertEquals(res.includes('<table'), true);
+});
